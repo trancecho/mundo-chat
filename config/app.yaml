@@ -1,0 +1,13 @@
+app:
+  logFile: log/gin.log
+  Port: "12387"
+  URL:  "127.0.0.1:12387"
+  Jwt: "Ma/ZA4ElPIv7co4yctYQAiKlF7sVIRz6VLqwPd90+x1qGPsC+BXzND9oh5xuLV03m9oDJHYkWp4JMZ1Fc9aS5Q=="
+
+
+redis:
+  addr: "localhost:6379"
+  password: ""
+  DB: 0
+  poolSize: 30
+  minIdleConns: 30
