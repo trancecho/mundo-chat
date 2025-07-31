@@ -44,7 +44,6 @@ type PushMsg struct {
 // NewResponseHead 设置返回消息
 func NewResponseHead(seq string, cmd string, code uint32, codeMsg string, data interface{}) *Head {
 	response := NewResponse(code, codeMsg, data)
-
 	return &Head{Seq: seq, Cmd: cmd, Response: response}
 }
 
@@ -52,11 +51,16 @@ func NewResponseHead(seq string, cmd string, code uint32, codeMsg string, data i
 func (h *Head) String() (headStr string) {
 	headBytes, _ := json.Marshal(h)
 	headStr = string(headBytes)
-
 	return
 }
 
 // NewResponse 创建新的响应
 func NewResponse(code uint32, codeMsg string, data interface{}) *Response {
 	return &Response{Code: code, CodeMsg: codeMsg, Data: data}
+}
+
+type AddRequest struct {
+	RoomName    string `json:"roomName"`
+	MaxPeople   int    `json:"maxPeople"`
+	Description string `json:"description,omitempty"` // 房间描述
 }

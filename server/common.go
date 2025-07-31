@@ -1,62 +1,43 @@
 package server
 
 import (
-	"encoding/json"
-	"fmt"
-	"github.com/trancecho/mundo-chat/models"
-	"github.com/trancecho/mundo-chat/server/common"
+	"github.com/gorilla/websocket"
 	"log"
+	"net/http"
+	"time"
 )
 
 var (
-	manager = NewManager()
+	Managers = NewRoomManager()
 )
 
-// ProcessData 处理数据
-func ProcessData(client *Client, message []byte) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Println("处理数据 stop", r)
-		}
-	}()
-	var request models.Request
-	if err := json.Unmarshal(message, &request); err != nil {
-		fmt.Println("处理数据 json Unmarshal", err)
-		client.SendMsg([]byte("数据不合法"))
-		return
-	}
-	seq := request.Seq
-	cmd := request.Cmd
-	requestData, err := json.Marshal(request.Data)
+const (
+	heartbeatExpirationTime = 6 * 60
+	MaxPeople               = 10 // 房间最大人数
+	CharPrefix              = "mundo-chat-"
+)
+
+func GenerateRoomKey(RoomName string) string {
+	return CharPrefix + RoomName
+}
+
+func WsPage(w http.ResponseWriter, req *http.Request, RoomID string, UserID string) {
+
+	// 升级协议
+	conn, err := (&websocket.Upgrader{CheckOrigin: func(r *http.Request) bool {
+		log.Println("升级协议", "ua:", r.Header["User-Agent"], "referer:", r.Header["Referer"])
+		return true
+	}}).Upgrade(w, req, nil)
 	if err != nil {
-		fmt.Println("处理数据 json Marshal", err)
-		client.SendMsg([]byte("处理数据失败"))
+		http.NotFound(w, req)
 		return
 	}
-	var (
-		code uint32
-		msg  string
-		data any
-	)
+	log.Println("webSocket 建立连接:", conn.RemoteAddr().String())
+	currentTime := uint64(time.Now().Unix())
+	client := NewClient(conn.RemoteAddr().String(), conn, currentTime, UserID)
+	go client.read()
+	go client.write(RoomID)
 
-	fmt.Println("acc_request", cmd, "from", client.Addr)
-
-	// 采用 map 注册的方式
-	if value, ok := getHandlers(cmd); ok {
-		code, msg, data = value(client, seq, requestData)
-	} else {
-		code = common.RoutingNotExist
-		fmt.Println("处理数据 路由不存在", client.Addr, "cmd", cmd)
-	}
-	msg = common.GetErrorMessage(code, msg)
-	responseHead := models.NewResponseHead(seq, cmd, code, msg, data)
-	headByte, err := json.Marshal(responseHead)
-	if err != nil {
-		fmt.Println("处理数据 json Marshal", err)
-		return
-	}
-
-	client.SendMsg(headByte)
-	fmt.Println("acc_response send", client.Addr, client.AppID, client.UserID, "cmd", cmd, "code", code)
-	return
+	// 用户连接事件
+	Managers.Rooms[RoomID].Register <- client
 }

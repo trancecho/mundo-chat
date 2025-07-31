@@ -1,8 +1,21 @@
 package server
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 type Manager struct {
+	// 房间的信息
+	ID          string    `json:"id"`          // 房间ID
+	Name        string    `json:"name"`        // 房间的名称
+	Description string    `json:"description"` // 房间描述
+	MaxUsers    int       `json:"maxUsers"`    // 最大用户数
+	CreatedAt   time.Time `json:"createdAt"`   // 创建时间
+	UpdatedAt   time.Time `json:"updatedAt"`   // 更新时间
+	IsActive    bool      `json:"isActive"`    // 是否活跃
+
+	// 客户端管理
 	Clients     map[*Client]bool   //全部连接
 	ClientsLock sync.RWMutex       //读写锁
 	UserMap     map[string]*Client //用户ID到客户端的映射
@@ -21,6 +34,44 @@ func NewManager() *Manager {
 		Register:    make(chan *Client, 1000),
 		Unregister:  make(chan *Client, 1000),
 		Broadcast:   make(chan []byte, 1000), // 缓冲区大小为100
+		IsActive:    true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		MaxUsers:    MaxPeople, // 默认最大用户数为10
+	}
+}
+
+// NewManagerWithInfo 创建带房间信息的Manager
+func NewManagerWithInfo(id, name, description string, maxUsers int) *Manager {
+	manager := NewManager()
+	manager.ID = id
+	manager.Name = name
+	manager.Description = description
+	manager.MaxUsers = maxUsers
+	return manager
+}
+
+// GetUserCount 获取当前用户数
+func (m *Manager) GetUserCount() int {
+	return m.GetClientLen()
+}
+
+// IsRoomFull 检查房间是否已满
+func (m *Manager) IsRoomFull() bool {
+	return m.GetClientLen() >= m.MaxUsers
+}
+
+// GetRoomInfo 获取房间信息
+func (m *Manager) GetRoomInfo() map[string]interface{} {
+	return map[string]interface{}{
+		"id":          m.ID,
+		"name":        m.Name,
+		"description": m.Description,
+		"maxUsers":    m.MaxUsers,
+		"userCount":   m.GetClientLen(),
+		"createdAt":   m.CreatedAt,
+		"updatedAt":   m.UpdatedAt,
+		"isActive":    m.IsActive,
 	}
 }
 
@@ -48,6 +99,7 @@ func (m *Manager) AddClient(client *Client) {
 	m.UserMapLock.Lock()
 	defer m.UserMapLock.Unlock()
 	m.UserMap[client.UserID] = client
+	m.UpdatedAt = time.Now()
 }
 
 func (m *Manager) RemoveClient(client *Client) {
@@ -61,6 +113,7 @@ func (m *Manager) RemoveClient(client *Client) {
 	if _, exists := m.UserMap[client.UserID]; exists {
 		delete(m.UserMap, client.UserID)
 	}
+	m.UpdatedAt = time.Now()
 }
 
 func (m *Manager) GetUserByID(userID string) *Client {
