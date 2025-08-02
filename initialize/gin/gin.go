@@ -3,6 +3,7 @@ package gin
 import (
 	"context"
 	"github.com/gin-gonic/gin"
+	"github.com/trancecho/mundo-chat/config"
 	"github.com/trancecho/mundo-chat/initialize"
 	"github.com/trancecho/mundo-chat/initialize/router"
 	"github.com/trancecho/mundo-chat/server"
@@ -11,6 +12,7 @@ import (
 
 func GinInit() *gin.Engine {
 	r := gin.Default()
+	config.ConfigInit()
 	initialize.InitRedis()
 	router.GenerateRouter(r)
 	middleware.InitSecret()

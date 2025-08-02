@@ -19,6 +19,9 @@ func AddRoom(c *gin.Context) {
 		libx.Err(c, common.ParameterIllegal, "Invalid request parameters", nil)
 		return
 	}
+	if request.MaxPeople == 0 {
+		request.MaxPeople = server.MaxPeople
+	}
 	roomID := server.GenerateRoomKey(request.RoomName)
 	manager := server.NewManagerWithInfo(roomID, request.RoomName, request.Description, request.MaxPeople)
 	server.Managers.Register <- manager
