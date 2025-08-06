@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"github.com/trancecho/mundo-chat/models"
+	"github.com/trancecho/mundo-chat/server/cache"
 	"log"
 	"runtime/debug"
 )
@@ -51,6 +52,10 @@ func (c *Client) Read(roomID string) {
 	}()
 	defer func() {
 		log.Println("用户读取通道关闭", c)
+		manager := Managers.GetRoom(roomID)
+		if manager != nil {
+			manager.Unregister <- c
+		}
 		close(c.SendChan)
 	}()
 	for {
@@ -72,6 +77,10 @@ func (c *Client) Read(roomID string) {
 		if err != nil {
 			log.Println("消息序列化失败:", err)
 			continue
+		}
+		//保存消息到redis缓存
+		if err = cache.SaveChatMessage(roomID, m); err != nil {
+			log.Println("保存聊天记录到Redis失败:", err)
 		}
 
 		manager.Broadcast <- jsonMessage

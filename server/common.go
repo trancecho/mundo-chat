@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"github.com/trancecho/mundo-chat/models"
+	"github.com/trancecho/mundo-chat/server/cache"
 	"log"
 	"net/http"
 	"time"
@@ -58,6 +59,18 @@ func WsPage(w http.ResponseWriter, req *http.Request, RoomID string, UserID stri
 	}
 	// 用户连接事件
 	manager.Register <- client
+
+	//获取历史记录
+	history, err := cache.GetChatHistory(RoomID, 50)
+	if err == nil && len(history) > 0 {
+		for _, msg := range history {
+			msgData, e := json.Marshal(msg)
+			if e == nil {
+				client.SendMsg(msgData)
+			}
+		}
+	}
+
 	//开启协程
 	go client.Read(RoomID)
 	go client.Write(RoomID)
