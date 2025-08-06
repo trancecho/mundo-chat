@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log"
 	"sync"
 )
 
@@ -60,15 +61,23 @@ func (rm *RoomManager) GetRoom(roomID string) *Manager {
 }
 
 // GetAllRooms 获取所有房间
-func (rm *RoomManager) GetAllRooms() map[string]*Manager {
+func (rm *RoomManager) GetAllRooms() []map[string]interface{} {
 	rm.RoomsLock.RLock()
 	defer rm.RoomsLock.RUnlock()
 
-	roomsCopy := make(map[string]*Manager, len(rm.Rooms))
-	for key, value := range rm.Rooms {
-		roomsCopy[key] = value
+	roomInfos := make([]map[string]interface{}, 0, len(rm.Rooms))
+	for _, value := range rm.Rooms {
+		roomInfo := map[string]interface{}{
+			"room_id":        value.ID,
+			"room_name":      value.Name,
+			"description":    value.Description,
+			"max_people":     value.MaxUsers,
+			"current_people": len(value.Clients),
+			"created_at":     value.CreatedAt,
+		}
+		roomInfos = append(roomInfos, roomInfo)
 	}
-	return roomsCopy
+	return roomInfos
 }
 
 // GetRoomCount 获取房间数量
@@ -183,10 +192,12 @@ func (rm *RoomManager) GetAllRoomsInfo() map[string]map[string]interface{} {
 }
 
 func (rm *RoomManager) Start(ctx context.Context) {
+	log.Println("start room manager")
 	// 使用context来控制管理器的生命周期
 	for {
 		select {
 		case manager := <-rm.Register:
+			log.Println(manager.ID)
 			// 使用接收到的manager进行房间注册
 			rm.RoomsLock.Lock()
 			if _, exists := rm.Rooms[manager.ID]; exists {
@@ -196,7 +207,6 @@ func (rm *RoomManager) Start(ctx context.Context) {
 			}
 			rm.Rooms[manager.ID] = manager
 			rm.RoomsLock.Unlock()
-
 			// 启动房间管理
 			go manager.Start()
 

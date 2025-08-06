@@ -17,8 +17,7 @@ func GinInit() *gin.Engine {
 	router.GenerateRouter(r)
 	middleware.InitSecret()
 	//启动房间管理器
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := context.Background()
 	go server.Managers.Start(ctx)
 	return r
 }

@@ -11,10 +11,11 @@ func Uid(c *gin.Context) uint {
 	return uidInt
 }
 
-//func GetUsername(c *gin.Context) string {
-//	username := c.MustGet("username").(string)
-//	return username
-//}
+func GetUsername(c *gin.Context) string {
+	username := c.MustGet("username").(string)
+	return username
+}
+
 //
 //func GetRole(c *gin.Context) string {
 //	role := c.MustGet("role").(string)

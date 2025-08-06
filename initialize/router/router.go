@@ -13,11 +13,12 @@ func GenerateRouter(r *gin.Engine) {
 			"message": "pong",
 		})
 	})
-	v1 := r.Group("/api", middleware.JWTAuthMiddleware())
+	v1 := r.Group("/api", middleware.JWTAuthMiddleware(), middleware.ResponseMiddleware())
 	{
 		v1.POST("/add_room", handler.AddRoom)         // 添加房间
 		v1.GET("/get_all_rooms", handler.GetAllRooms) // 获取所有房间
 		v1.GET("/room_exists", handler.RoomExists)    // 检查房间是否存在
 		v1.GET("/chat", handler.Chat)                 // 进入聊天室
+		v1.GET("/roomInfo", handler.GetRoomInfo)      // 获取房间信息
 	}
 }

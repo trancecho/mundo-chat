@@ -1,7 +1,9 @@
 package server
 
 import (
+	"encoding/json"
 	"github.com/gorilla/websocket"
+	"github.com/trancecho/mundo-chat/models"
 	"log"
 	"runtime/debug"
 )
@@ -17,9 +19,10 @@ type Client struct {
 	LoginTime     uint64          // 用户登录时间
 }
 
-func NewClient(addr string, socket *websocket.Conn, firstTime uint64, UserID string) *Client {
+func NewClient(addr string, socket *websocket.Conn, firstTime uint64, UserID, Username string) *Client {
 	return &Client{
 		UserID:        UserID,
+		Username:      Username,
 		Addr:          addr,
 		Socket:        socket,
 		SendChan:      make(chan []byte, 100), // 缓冲区大小为100
@@ -40,7 +43,7 @@ func (c *Client) SendMsg(message []byte) {
 	c.SendChan <- message
 }
 
-func (c *Client) read() {
+func (c *Client) Read(roomID string) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("white stop", string(debug.Stack()), r)
@@ -57,6 +60,21 @@ func (c *Client) read() {
 			return
 		}
 		log.Printf("用户读取消息: %s, 内容: %s", c.Addr, message)
+
+		manager := Managers.GetRoom(roomID)
+		if manager == nil {
+			log.Println("获取房间管理器失败:", roomID)
+			continue
+		}
+
+		m := models.NewMsg(c.Username, string(message))
+		jsonMessage, err := json.Marshal(m)
+		if err != nil {
+			log.Println("消息序列化失败:", err)
+			continue
+		}
+
+		manager.Broadcast <- jsonMessage
 	}
 }
 
@@ -70,7 +88,7 @@ func (c *Client) IsLogin() bool {
 	return c.UserID != ""
 }
 
-func (c *Client) write(roomID string) {
+func (c *Client) Write(roomID string) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("write stop", string(debug.Stack()), r)
@@ -88,7 +106,11 @@ func (c *Client) write(roomID string) {
 				log.Println("Client发送数据关闭连接:", c.Addr, "ok", ok)
 				return
 			}
-			_ = c.Socket.WriteMessage(websocket.TextMessage, message)
+			err := c.Socket.WriteMessage(websocket.TextMessage, message)
+			if err != nil {
+				log.Printf("用户发送消息失败: %s, 错误: %v", c.Addr, err)
+				return
+			}
 		}
 	}
 }

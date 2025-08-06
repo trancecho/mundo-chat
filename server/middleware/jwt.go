@@ -11,7 +11,7 @@ import (
 var Secret []byte
 
 func InitSecret() {
-	Secret = []byte(viper.GetString("app.Jwt"))
+	Secret = []byte(viper.GetString("app.Jwt") + "mundo")
 }
 
 type Claims struct {
@@ -51,7 +51,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"code": http.StatusUnauthorized,
-				"msg":  "无效或者过期的token",
+				"msg":  err.Error(),
 			})
 			c.Abort()
 			return
@@ -66,13 +66,23 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-// 验证 JWT Token
+// ParseToken 验证 JWT Token
 func ParseToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return Secret, nil
 	})
 
 	if err != nil {
+		// 区分具体错误类型
+		if ve, ok := err.(*jwt.ValidationError); ok {
+			if ve.Errors&jwt.ValidationErrorExpired != 0 {
+				return nil, errors.New("token已过期")
+			} else if ve.Errors&jwt.ValidationErrorSignatureInvalid != 0 {
+				return nil, errors.New("token签名无效")
+			} else {
+				return nil, errors.New("token解析错误: " + err.Error())
+			}
+		}
 		return nil, err
 	}
 

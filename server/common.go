@@ -1,7 +1,9 @@
 package server
 
 import (
+	"encoding/json"
 	"github.com/gorilla/websocket"
+	"github.com/trancecho/mundo-chat/models"
 	"log"
 	"net/http"
 	"time"
@@ -21,23 +23,47 @@ func GenerateRoomKey(RoomName string) string {
 	return CharPrefix + RoomName
 }
 
-func WsPage(w http.ResponseWriter, req *http.Request, RoomID string, UserID string) {
+func WsPage(w http.ResponseWriter, req *http.Request, RoomID string, UserID string, Username string) {
+	if !Managers.RoomExists(RoomID) {
+		log.Println("房间不存在:", RoomID)
+		http.Error(w, "房间不存在", http.StatusNotFound)
+		return
+	}
 
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			log.Println("升级协议", "ua:", r.Header["User-Agent"], "referer:", r.Header["Referer"])
+			return true
+		},
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
 	// 升级协议
-	conn, err := (&websocket.Upgrader{CheckOrigin: func(r *http.Request) bool {
-		log.Println("升级协议", "ua:", r.Header["User-Agent"], "referer:", r.Header["Referer"])
-		return true
-	}}).Upgrade(w, req, nil)
+	conn, err := upgrader.Upgrade(w, req, nil)
 	if err != nil {
-		http.NotFound(w, req)
+		log.Println("升级协议失败:", err)
+		http.Error(w, "无法建立WebSocket连接", http.StatusInternalServerError)
 		return
 	}
 	log.Println("webSocket 建立连接:", conn.RemoteAddr().String())
 	currentTime := uint64(time.Now().Unix())
-	client := NewClient(conn.RemoteAddr().String(), conn, currentTime, UserID)
-	go client.read()
-	go client.write(RoomID)
+	client := NewClient(conn.RemoteAddr().String(), conn, currentTime, UserID, Username)
 
+	manager := Managers.GetRoom(RoomID)
+	if manager == nil {
+		log.Println("获取房间管理器失败:", RoomID)
+		http.Error(w, "无法获取房间信息", http.StatusInternalServerError)
+		_ = conn.Close()
+		return
+	}
 	// 用户连接事件
-	Managers.Rooms[RoomID].Register <- client
+	manager.Register <- client
+	//开启协程
+	go client.Read(RoomID)
+	go client.Write(RoomID)
+
+	//发送加入通知
+	joinMsg := models.NewMsg(Username, Username+"进入房间")
+	joinData, _ := json.Marshal(joinMsg)
+	manager.Broadcast <- joinData
 }

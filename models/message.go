@@ -1,6 +1,9 @@
 package models
 
-import "github.com/trancecho/mundo-chat/server/common"
+import (
+	"github.com/trancecho/mundo-chat/server/common"
+	"time"
+)
 
 const (
 	MessageTypeText  = "text"
@@ -10,7 +13,7 @@ const (
 )
 
 type Message struct {
-	Target  string `json:"target"`
+	Time    int64  `json:"time"`
 	Content string `json:"content"`
 	From    string `json:"from"`
 	MsgType string `json:"msgType"`
@@ -19,6 +22,7 @@ type Message struct {
 // NewMsg 创建新的消息
 func NewMsg(from string, Msg string) (message *Message) {
 	message = &Message{
+		Time:    time.Now().Unix(),
 		MsgType: MessageTypeText,
 		From:    from,
 		Content: Msg,
