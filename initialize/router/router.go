@@ -7,6 +7,7 @@ import (
 )
 
 func GenerateRouter(r *gin.Engine) {
+	r.Use(middleware.Middleware())
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{
