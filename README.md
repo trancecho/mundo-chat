@@ -1,5 +1,4 @@
-# mundo-chat
-mundo聊天室开发仓库
+# mundo-chat      --mundo聊天室开发仓库
 
 **配置文件格式可以参考如下**
 
